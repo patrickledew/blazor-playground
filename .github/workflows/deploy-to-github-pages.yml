@@ -32,6 +32,7 @@ jobs:
         git stash pop                                         # Should now contain 'dist' folder
         cp -r dist/wwwroot/* .                                # Copy everything inside of dist/wwwroot folder to root dir
         rm -r dist                                            # Remove dist folder since we copied everything out of it
+        touch .nojekyll                                       # By default, GH pages doesn't serve stuff in the _framework folder, this fixes that
         git add .
         git commit -m "deploy to github pages on $(date +%m/%d/%Y)"
         git push
