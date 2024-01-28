@@ -31,7 +31,7 @@ jobs:
         git checkout gh-pages
         rm -r *                                               # Remove old site
         git stash pop                                         # Should now contain 'dist' folder
-        cp -r dist/wwwroot .                                  # Copy everything inside of dist/wwwroot folder to root dir
+        cp -r dist/wwwroot/* .                                # Copy everything inside of dist/wwwroot folder to root dir
         rm -r dist                                            # Remove dist folder since we copied everything out of it
         git add .
         git commit -m "deploy to github pages on $(date +%m/%d/%Y)"
