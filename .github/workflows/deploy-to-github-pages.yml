@@ -1,10 +1,8 @@
 name: deploy-to-github-pages
+run-name: Build and deploy pages site for ${{ github.actor }}
 
 on:
   push:
-    branches:
-    - main
-  pull_request:
     branches:
     - main
 
