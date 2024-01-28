@@ -20,6 +20,7 @@ jobs:
     - name: Push changes to gh-pages branch
       run: |
         git add .
+        git commit -m "deploy to github pages on $(date +%m/%d/%Y)"
         git subtree push --prefix dist/wwwroot origin gh-pages
       
     
