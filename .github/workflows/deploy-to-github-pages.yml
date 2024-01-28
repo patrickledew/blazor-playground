@@ -19,6 +19,8 @@ jobs:
       run: dotnet publish blazor-playground.csproj -c:Release -o dist
     - name: Push changes to gh-pages branch
       run: |
+        git config --global user.name "CI"
+        git config --global user.email "adotout1@gmail.com"
         git add .
         git commit -m "deploy to github pages on $(date +%m/%d/%Y)"
         git subtree push --prefix dist/wwwroot origin gh-pages
