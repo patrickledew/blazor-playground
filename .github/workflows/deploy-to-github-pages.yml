@@ -13,12 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Setup dotnet
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '6.0.x'
     - name: Display dotnet version
       run: dotnet --version
+    - name: Build site into dist/ folder
+      run: dotnet publish blazor-playground.csproj -c:Release -o dist
+    - name: Push changes to gh-pages branch
+      run: |
+        git add .
+        git subtree push --prefix dist/wwwroot origin gh-pages
       
     
     
