@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+          ref: main
     - name: Display dotnet version
       run: dotnet --version
     - name: Build site into dist/ folder
