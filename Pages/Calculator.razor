@@ -1,0 +1,154 @@
+﻿@page "/calculator"
+
+<div class="calc">
+	<div class="calc-screen @(justCalculated ? "fresh" : "")">@cur</div>
+	<div class="calc-nums">
+		<div class="calc-num calc-btn" @onclick="() => enterNum(1)">1</div>
+		<div class="calc-num calc-btn" @onclick="() => enterNum(2)">2</div>
+		<div class="calc-num calc-btn" @onclick="() => enterNum(3)">3</div>
+		<div class="calc-num calc-btn" @onclick="() => enterNum(4)">4</div>
+		<div class="calc-num calc-btn" @onclick="() => enterNum(5)">5</div>
+		<div class="calc-num calc-btn" @onclick="() => enterNum(6)">6</div>
+		<div class="calc-num calc-btn" @onclick="() => enterNum(7)">7</div>
+		<div class="calc-num calc-btn" @onclick="() => enterNum(8)">8</div>
+		<div class="calc-num calc-btn" @onclick="() => enterNum(9)">9</div>
+	</div>
+	<div class="calc-ops">
+		<div class="calc-add calc-op calc-btn" @onclick='() => triggerCalc("+")'>+</div>
+		<div class="calc-sub calc-op calc-btn" @onclick='() => triggerCalc("-")'>-</div>
+		<div class="calc-mult calc-op calc-btn" @onclick='() => triggerCalc("*")'>×</div>
+		<div class="calc-div calc-op calc-btn" @onclick='() => triggerCalc("/")'>÷</div>
+	</div>
+	
+	<div class="calc-0 calc-num calc-btn" @onclick="() => enterNum(0)">0</div>
+	<div class="calc-c calc-num calc-btn" @onclick=clear>C</div>
+	<div class="calc-eq calc-btn" @onclick='() => triggerCalc("")'>=</div>
+</div>
+<span>M: @acc</span>
+
+<style>
+	.calc {
+		display: grid;
+		width: 400px;
+		height: 600px;
+		grid-template-columns: 1fr 1fr 1fr 1fr;
+		grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
+		font-size: 2em;
+		place-content: center;
+	}
+
+	.calc-screen {
+		display: flex;
+		justify-content: flex-end;
+		align-items: center;
+		padding: 20px;
+		font-size: 1.5em;
+		background-color: #f0f0f0;
+		border: 1px solid #0002;
+		grid-column: 1 / 5;
+	}
+
+	.fresh {
+		 color: green;
+	}
+	.calc-btn {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		cursor: pointer;
+		border: 1px solid #0002;
+	}
+
+	.calc-btn:hover {
+		filter: brightness(0.8)
+	}
+
+	.calc-nums {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1fr;
+		grid-template-rows: 1fr 1fr 1fr;
+		grid-column: 1 / 4;
+		grid-row: 2 / 5;
+	}
+	.calc-num {
+		background: #e0e0e0;
+	}
+	.calc-0 {
+		grid-column: 1 / 2;
+		grid-row: 5;
+	}
+	.calc-c {
+		grid-column:2 / 3;
+		grid-row: 5;
+	}
+	.calc-eq {
+		grid-column: 3 / 4;
+		grid-row: 5;
+	}
+	.calc-ops {
+		display: grid;
+		grid-template-columns: 1fr;
+		grid-template-rows: 1fr 1fr 1fr 1fr;
+		grid-column: 4;
+		grid-row: 2 / 6;
+	}
+
+	.calc-op, .calc-eq {
+		background: #1155f0;
+		color: white;
+	}
+</style>
+
+@code{
+	private double acc = 0.0;
+	private double cur = 0.0;
+
+	private string curOp = ""; // '+' | '-' | '*' | '/' | ''
+
+	private bool justCalculated = false;
+
+	private void enterNum(int number)
+	{
+		if (justCalculated)
+		{
+			cur = number; // If the user entered e.g. 1234 + 567 + <- this last plus would trigger a calculation, on the next keystroke we want to enter a NEW number
+			justCalculated = false;
+		}
+		else
+		{
+			cur = cur * 10 + number;
+		}
+	}
+
+	private void triggerCalc(string op)
+	{
+		double result = calculate(); // calculate using previously selected operation
+		acc = result;
+		cur = result; // so result is displayed immediately on pressing op, next keystroke will start typing a new number
+		curOp = op;
+		justCalculated = true;
+	}
+
+	private double calculate()
+	{
+		switch (curOp) {
+			case "+":
+				return acc + cur;
+			case "-":
+				return acc - cur;
+			case "*":
+				return acc * cur;
+			case "/":
+				return acc / cur;
+			default:
+				return cur;
+		}
+	}
+
+	private void clear()
+	{
+		acc = 0.0;
+		cur = 0.0;
+		curOp = "";
+	}
+}
