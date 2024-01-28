@@ -35,7 +35,7 @@ jobs:
         rm -r dist                                            # Remove dist folder since we copied everything out of it
         git add .
         git commit -m "deploy to github pages on $(date +%m/%d/%Y)"
-        git subtree push --prefix dist/wwwroot origin gh-pages
+        git push
       
     
     
