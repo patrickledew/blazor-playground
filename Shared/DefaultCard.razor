@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+<MudCard Elevation="4" Style="margin-bottom: 20px;">
+    <MudCardHeader Style="border-bottom: 1px solid #eee;">
+        <CardHeaderContent>
+            <MudText Typo="Typo.h4">
+                @Title
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent Style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+        @ChildContent
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,92 @@
+@using System.Text
+
+@page "/mudblazor"
+
+@inject IDialogService DialogService
+
+<MudText Typo="Typo.h3">
+    MudBlazor Playground
+</MudText>
+<MudText Typo="Typo.body1" style="margin-bottom: 20px;">
+    This is for me to experiment with the
+    <MudLink href="https://mudblazor.com" target="_blank">MudBlazor</MudLink>
+    component library.
+</MudText>
+<DefaultCard Title="Dialogs">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => dialogOpen = true">Click me to show a
+        dialog!</MudButton>
+    <MudText Typo="Typo.body1">dialogOpen: @dialogOpen</MudText>
+</DefaultCard>
+<DefaultCard Title="Tables">
+    <MudStack Row>
+        <MudNumericField Variant="Variant.Filled" @bind-Value="numRowsToAdd" Min="0"></MudNumericField>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+            @onclick="() => rows.AddRange(tableRowIter.Take(numRowsToAdd))">
+            Add @numRowsToAdd Rows
+        </MudButton>
+    </MudStack>
+    <MudTable Items="@rows" Style="width: 100%" RowsPerPage="5">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Date</MudTh>
+            <MudTh>Count</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.name</MudTd>
+            <MudTd DataLabel="Date">@context.date</MudTd>
+            <MudTd DataLabel="Count">@context.count</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</DefaultCard>
+<!-- Dialog -->
+<MudDialog @bind-IsVisible=dialogOpen Options="dialogOptions" Style="width: 400px;">
+    <TitleContent>
+        <h1>Hello!!!</h1>
+        <MudDivider />
+    </TitleContent>
+    <DialogContent>
+        <p>This is a dialog!</p>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="() => dialogOpen = false">Close
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+
+@code {
+    private record TableRow(string name, DateTime date, int count);
+    private IEnumerable<TableRow> tableRowIter = GenTableRows();
+    private int numRowsToAdd = 1;
+    private List<TableRow> rows = new();
+    private static IEnumerable<TableRow> GenTableRows()
+    {
+        Random rand = new Random();
+        while (true)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0; i < 5; i++)
+            {
+                // Random name
+                char letter = Convert.ToChar(Convert.ToInt32('a') + rand.Next(24));
+                sb.Append(letter);
+            }
+            var name = sb.ToString();
+
+
+            var date = new DateTime(2024 - rand.Next(100), rand.Next(12) + 1, rand.Next(29) + 1);
+            var count = rand.Next(500);
+
+            var row = new TableRow(name, date, count);
+            yield return row;
+        }
+    }
+
+    private bool dialogOpen = false;
+    private DialogOptions dialogOptions = new DialogOptions { };
+}
