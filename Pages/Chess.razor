@@ -1,0 +1,211 @@
+@page "/chess";
+@using System.Text;
+
+@inject IJSRuntime JsRuntime
+
+<div class="chessboard">
+    @for (var i = 0; i < 64; i++)
+    {
+        var r = i / 8 + 1;
+        if (playerIsWhite) r = 9 - r;
+
+        var f = i % 8 + 1;
+        if (!playerIsWhite) f = 9 - f;
+
+        var color = false;
+        if (r % 2 == 0)
+        {
+            if (f % 2 == 0) color = true;
+        }
+        else
+        {
+            if (f % 2 != 0) color = true;
+        }
+
+        var colorClass = color ? "colored" : "";
+
+        var coord = new Coord(r, f);
+        var isActive = activeSquare == coord;
+
+        var flashClass = flashingSquare == coord ? "flash" : "";
+        <div class="square @colorClass @flashClass" id="@ToCoordStr(coord)" active="@isActive"
+            @onclick="() => ClickSquare(coord)" @oncontextmenu="() => RightClickSquare(coord)"
+            @oncontextmenu:preventDefault="true">
+            @if (engine.board.GetPieceAtPosition(coord) != '.')
+            {
+                <img src="@GetPieceImage(engine.board.GetPieceAtPosition(coord))" />
+            }
+        </div>
+    }
+</div>
+
+<pre>
+    Current Player: @(engine.currentPlayer == Player.WHITE ? "White" : "Black")
+    White In Check: @engine.InCheck(engine.board, Player.WHITE)
+    White King Pos: @engine.FindKing(engine.board, Player.WHITE)
+    Black In Check: @engine.InCheck(engine.board, Player.BLACK)
+    Black King Pos: @engine.FindKing(engine.board, Player.BLACK)
+
+    En Passant File: @engine.enPassantFile
+    Board Text:
+
+    @engine.board.GetBoardStr()
+</pre>
+
+<p>@("\u9814")</p>
+
+<style>
+    pre {
+        white-space-collapse: preserve-breaks;
+    }
+
+    .chessboard {
+        display: grid;
+        width: 800px;
+        height: 800px;
+        grid-template-columns: repeat(8, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+        border: 2px solid black;
+    }
+
+    .square {
+        user-select: none;
+
+        background-color: tan;
+        color: white;
+        font-size: 2em;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .square img {
+        width: 80%;
+        height: 80%;
+    }
+
+    .square:hover {
+        filter: brightness(0.5);
+        cursor: pointer;
+    }
+
+    .square.colored {
+        background-color: brown;
+    }
+
+    .square[active] {
+        background-color: rgb(194, 194, 72);
+        filter: none;
+    }
+
+    .square.flash {
+        animation: flash 0.15s alternate 5;
+    }
+
+    @@keyframes flash {
+        0% {
+            background-color: red;
+        }
+
+        49% {
+            background-color: red;
+        }
+
+        50% {}
+
+        99% {}
+    }
+</style>
+
+@code {
+    private ChessEngine engine = new();
+    private bool playerIsWhite = true;
+
+    private Coord? activeSquare;
+    private Coord? flashingSquare;
+
+
+    private void ClickSquare(Coord targetSquare)
+    {
+        flashingSquare = null;
+        // There's already a square selected
+        if (activeSquare != null)
+        {
+            // If clicking same square, deselect square
+            if (activeSquare == targetSquare)
+            {
+                activeSquare = null;
+                return;
+            }
+
+            // Not selecting same piece, but selecting another of our pieces
+            if (engine.IsOwnPiece(targetSquare, engine.currentPlayer!))
+            {
+                activeSquare = targetSquare;
+            }
+
+            // Clicking other square that is not one of our pieces - try to move
+            else if (engine.MovePiece(activeSquare, targetSquare))
+            {
+                // Piece moved
+                activeSquare = null;
+                if (engine.InCheck(engine.board, engine.currentPlayer))
+                {
+                    var kingCoord = engine.FindKing(engine.board, engine.currentPlayer);
+                    if (kingCoord != null) FlashSquare(kingCoord);
+                }
+                StateHasChanged();
+                return;
+            }
+            else // was invalid move, flash square and unselect square
+            {
+                FlashSquare(activeSquare);
+                activeSquare = null;
+            }
+        }
+        else
+        {
+            // No square currently selected. Test if the square is one of our pieces.
+            if (engine.IsOwnPiece(targetSquare, engine.currentPlayer!))
+            {
+                activeSquare = targetSquare;
+                return;
+            }
+        }
+
+
+    }
+
+    // FLash a square red, e.g. if the move is invalid
+    private void FlashSquare(Coord square)
+    {
+        flashingSquare = square;
+    }
+
+    private void RightClickSquare(Coord square)
+    {
+        activeSquare = null;
+    }
+
+    private string ToCoordStr(Coord coord)
+    {
+        StringBuilder sb = new();
+
+        sb.Append(Convert.ToChar('a' + coord.file - 1));
+        sb.Append(coord.rank);
+        return sb.ToString();
+    }
+
+    private string GetPieceImage(char piece)
+    {
+        bool isWhitePiece = 'a' <= piece && piece <= 'z';
+
+        string lowerPieceName = piece.ToString().ToLower();
+        return piece switch
+        {
+            '.' => "",
+            char c => $"/chess-icons/{(isWhitePiece ? "w" : "b")}{lowerPieceName}.svg"
+        };
+
+    }
+}
