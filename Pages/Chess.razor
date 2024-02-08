@@ -3,30 +3,41 @@
 
 @inject IJSRuntime JsRuntime
 
+<MudButton Color="Color.Primary" Variant="Variant.Outlined" StartIcon="oi oi-loop-circular"
+    @onclick="() => playerIsWhite=!playerIsWhite" Style="margin-bottom: 10px">
+    Switch Sides</MudButton>
+
+<MudButton Color="Color.Primary" Variant="Variant.Outlined" StartIcon="oi oi-loop-circular" @onclick="ResetBoard"
+    Style="margin-bottom: 10px">
+    Reset Board</MudButton>
 <div class="chessboard">
     @for (var i = 0; i < 64; i++)
     {
+        // Calculate rank of current tile
         var r = i / 8 + 1;
         if (playerIsWhite) r = 9 - r;
 
+        // Calculate file of current file
         var f = i % 8 + 1;
         if (!playerIsWhite) f = 9 - f;
 
-        var color = false;
+        var isDarkSquare = false;
         if (r % 2 == 0)
         {
-            if (f % 2 == 0) color = true;
+            if (f % 2 == 0) isDarkSquare = true;
         }
         else
         {
-            if (f % 2 != 0) color = true;
+            if (f % 2 != 0) isDarkSquare = true;
         }
 
-        var colorClass = color ? "colored" : "";
+        var colorClass = isDarkSquare ? "dark" : "light";
 
-        var coord = new Coord(r, f);
+        var coord = new Coord(r, f); // Location of square, used for getting board info / interacting with board
+
         var isActive = activeSquare == coord;
 
+        // If the square should currently be flashing, set the "flash" class to trigger a flashing animation
         var flashClass = flashingSquare == coord ? "flash" : "";
         <div class="square @colorClass @flashClass" id="@ToCoordStr(coord)" active="@isActive"
             @onclick="() => ClickSquare(coord)" @oncontextmenu="() => RightClickSquare(coord)"
@@ -51,8 +62,6 @@
 
     @engine.board.GetBoardStr()
 </pre>
-
-<p>@("\u9814")</p>
 
 <style>
     pre {
@@ -89,7 +98,7 @@
         cursor: pointer;
     }
 
-    .square.colored {
+    .square.dark {
         background-color: brown;
     }
 
@@ -124,7 +133,10 @@
     private Coord? activeSquare;
     private Coord? flashingSquare;
 
-
+    private void ResetBoard()
+    {
+        engine.ResetBoard();
+    }
     private void ClickSquare(Coord targetSquare)
     {
         flashingSquare = null;
@@ -139,7 +151,7 @@
             }
 
             // Not selecting same piece, but selecting another of our pieces
-            if (engine.IsOwnPiece(targetSquare, engine.currentPlayer!))
+            if (ChessUtils.IsOwnPiece(engine.board.GetPieceAtPosition(targetSquare), engine.currentPlayer))
             {
                 activeSquare = targetSquare;
             }
@@ -166,7 +178,7 @@
         else
         {
             // No square currently selected. Test if the square is one of our pieces.
-            if (engine.IsOwnPiece(targetSquare, engine.currentPlayer!))
+            if (ChessUtils.IsOwnPiece(engine.board.GetPieceAtPosition(targetSquare), engine.currentPlayer))
             {
                 activeSquare = targetSquare;
                 return;

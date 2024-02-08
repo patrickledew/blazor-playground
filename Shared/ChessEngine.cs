@@ -1,6 +1,7 @@
 
 using System.Collections;
 using System.Text;
+using blazor_playground.Pages;
 
 public enum Player {
     WHITE,
@@ -13,6 +14,12 @@ public class ChessEngine {
     // This gets reset to -1 when there is no pawn that can be taken en passant.
     public int enPassantFile = -1;
     public Player currentPlayer = Player.WHITE;
+
+    public void ResetBoard() {
+        board = new();
+        enPassantFile = -1;
+        currentPlayer = Player.WHITE;
+    }
     public bool MovePiece(Coord from, Coord to) {
         if (IsValidMove(from, to, currentPlayer)) {
             // Check for castling, en passant first
@@ -61,30 +68,14 @@ public class ChessEngine {
         return false;
     }
 
-    public bool IsOwnPiece(Coord coord, Player player) {
-        var piece =  board.GetPieceAtPosition(coord);
-        if (player == Player.WHITE) { 
-            return piece >= 'a' && piece <= 'z';
-        }
-        else { 
-            return piece >= 'A' && piece <= 'Z';
-        }
-    }
-
-    private bool IsSamePieceColor(char pieceA, char pieceB) {
-        return false;
-    }
+    
 
 
     public Coord? FindKing(Board boardToUse, Player player) {
-        for (int r = 1; r <= 8; r++) {
-            for (int f = 1; f <= 8; f++) {
-                var coord = new Coord(r, f);
-                var piece = boardToUse.GetPieceAtPosition(coord);
-                if ((piece == 'k' || piece == 'K') && IsOwnPiece(coord, player)) {
+        foreach ((var piece, var coord) in boardToUse.GetPiecesForPlayer(player)) {
+                if (piece == 'k' || piece == 'K') {
                     return coord;
                 }
-            }
         }
         return null; // There isn't a king on the board???
     }
@@ -93,20 +84,10 @@ public class ChessEngine {
         // Find where the player's king is
         Coord? kingPos = FindKing(boardToUse, player);
         if (kingPos == null) return false; // Can't be in check if you dont have a king lol
-        // Check every square
-        for (int r = 1; r <= 8; r++) {
-            for (int f = 1; f <= 8; f++) {
-                var coord = new Coord(r, f);
-                var piece = boardToUse.GetPieceAtPosition(coord);
-
-                // Ignore own player's pieces and empty squares
-                if (IsOwnPiece(coord, player) || piece == '.') continue;
-
-                var canTake = IsValidMove(coord, kingPos, player == Player.WHITE ? Player.BLACK : Player.WHITE);
-                
-                // If the opponent can capture the king with this piece on the next move provided the current player does nothing, the king is in check.
-                if (canTake) return true;
-            }
+        foreach ((char piece, Coord coord) in boardToUse.GetPiecesForPlayer(ChessUtils.OtherPlayer(player))) {
+            var canTake = IsValidMove(coord, kingPos, player == Player.WHITE ? Player.BLACK : Player.WHITE, invalidIfCheck: false, boardToUse: boardToUse);
+            // If the opponent can capture the king with this piece on the next move provided the current player does nothing, the king is in check.
+            if (canTake) return true;
         }
         return false;
     }
@@ -120,20 +101,22 @@ public class ChessEngine {
 
 
     }
-    public bool IsValidMove(Coord from, Coord to, Player forPlayer) {
+    public bool IsValidMove(Coord from, Coord to, Player player, bool invalidIfCheck = true, Board? boardToUse = null) {
+
+        if (boardToUse == null) boardToUse = board;
 
         // Cannot move piece to same square
         if (from == to) return false;
 
         // Cannot move another player's piece
-        if (!IsOwnPiece(from, forPlayer)) return false;
+        char piece = board.GetPieceAtPosition(from);
+        if (!ChessUtils.IsOwnPiece(piece, player)) return false;
 
         // Check if move will put/leave king in check! If so, not valid move!
-        // if (WillPutKingInCheck(from, to, forPlayer)) return false;
+        // Since the InCheck function calls IsValidMove, we disable this check with invalidIfCheck=false to prevent infinite loops
+        if (invalidIfCheck && WillPutKingInCheck(from, to, player)) return false;
 
-        char piece = board.GetPieceAtPosition(from);
-
-
+        if (ChessUtils.MoveJumpsOverPiece(from, to, boardToUse)) return false;
         // Rules for moving major pieces
         // 1. King
         if (piece == 'k' || piece == 'K') {
@@ -145,35 +128,35 @@ public class ChessEngine {
         // 2. Queen
         else if (piece == 'q' || piece == 'Q') {
             // Must be along diagonal or straight
-            if (!IsStraightMove(from, to) && !IsDiagonalMove(from, to)) return false;
+            if (!ChessUtils.IsStraightMove(from, to) && !ChessUtils.IsDiagonalMove(from, to)) return false;
 
             return true;
         }
 
         // 3. Rook
         else if (piece == 'r' || piece == 'R') {
-            if (!IsStraightMove(from, to)) return false;
+            if (!ChessUtils.IsStraightMove(from, to)) return false;
 
             return true;
         }
 
         // 4. Knight
         else if (piece == 'n' || piece == 'N') {
-            if (!IsKnightMove(from, to)) return false;
+            if (!ChessUtils.IsKnightMove(from, to)) return false;
 
             return true;
         }
 
         // 5. Bishop
         else if (piece == 'b' || piece == 'B') {
-            if (!IsDiagonalMove(from, to)) return false;
+            if (!ChessUtils.IsDiagonalMove(from, to)) return false;
 
             return true;
         }
 
         // 6. Pawns
         else if (piece == 'p' || piece == 'P') {
-            var isWhite = forPlayer == Player.WHITE;
+            var isWhite = player == Player.WHITE;
 
             var pawnRank = isWhite ? 2 : 7;
             var secondRank = isWhite ? 3 : 6;
@@ -186,17 +169,18 @@ public class ChessEngine {
                 if (from.rank == pawnRank) { 
                     // Allow moving 2 spaces provided that both of the spaces in front are clear
                     if (to.rank == thirdRank) {
-                        if (board.GetPieceAtPosition(new Coord(secondRank, from.file)) == '.'
-                        && board.GetPieceAtPosition(to) == '.') return true;
+                        if (boardToUse.GetPieceAtPosition(new Coord(secondRank, from.file)) == '.'
+                        && boardToUse.GetPieceAtPosition(to) == '.') return true;
                         // TODO add logic to prepare en passant
                     }
                 }
                 // Just advancing normally along the board
                 if ((isWhite && to.rank == from.rank + 1) || (!isWhite && to.rank == from.rank - 1)) {
-                        if (board.GetPieceAtPosition(to) == '.') return true;
+                        if (boardToUse.GetPieceAtPosition(to) == '.') return true;
                 }
             } else if (Math.Abs(to.file - from.file) == 1) {
                 // Capturing diagonally
+                var capturedPiece = boardToUse.GetPieceAtPosition(to);
 
                 // If white, must be increasing rank to capture
                 if (isWhite && to.rank - from.rank != 1) return false;
@@ -204,7 +188,7 @@ public class ChessEngine {
                 if (!isWhite && to.rank - from.rank != -1) return false; 
 
                 // Must be landing on enemy piece
-                if (!IsOwnPiece(to, forPlayer) && board.GetPieceAtPosition(to) != '.') return true;
+                if (!ChessUtils.IsOwnPiece(capturedPiece, player) && capturedPiece != '.') return true;
 
                 // ... or Capturing en passant
                 if (to.file == enPassantFile) {
@@ -221,36 +205,9 @@ public class ChessEngine {
         return false;
     }
 
-    private bool IsKnightMove(Coord from, Coord to) {
-            var rankDiff = Math.Abs(to.rank - from.rank);
-            var fileDiff = Math.Abs(to.file - from.file);
-            if ((rankDiff == 2 && fileDiff == 1) || (rankDiff == 1 && fileDiff == 2)) return true;
-
-            return false;
-    }
-
-    private bool IsDiagonalMove(Coord from, Coord to) {
-            var rankDiff = Math.Abs(to.rank - from.rank);
-            var fileDiff = Math.Abs(to.file - from.file);
-
-            if (rankDiff == fileDiff) return true;
-            
-            return false;
-    }
-
-    private bool IsStraightMove(Coord from, Coord to) {
-            var rankDiff = Math.Abs(to.rank - from.rank);
-            var fileDiff = Math.Abs(to.file - from.file);
-
-            if (rankDiff == 0 || fileDiff == 0) return true;
-
-            return false;
-    }
-
 }
 
 
-[Serializable]
 public record Coord(int rank, int file);
 
 public class Board {
@@ -266,12 +223,27 @@ public class Board {
         "RNBQKBNR".ToCharArray(), // rank 8 (black)
     };
 
+    private readonly object ranksLock = new object();
+
     public Board() {
     }
     // Copies the piece data from a previous board position
     public Board(Board previousBoard) {
         for (int i = 0; i < 8; i++)
             Array.Copy(previousBoard.ranks[i], ranks[i], 8);
+    }
+
+    public IEnumerable<(char _piece, Coord _position)> GetPiecesForPlayer(Player player) {
+        // yield return ('r', new Coord(4, 4));
+        lock (ranksLock) {
+            for (int r = 1; r <= 8; r++) {
+                for (int f = 1; f <= 8; f++) {
+                    var coord = new Coord(r, f);
+                    var piece = GetPieceAtPosition(coord);
+                    if (ChessUtils.IsOwnPiece(piece, player)) yield return (piece, coord);
+                }
+            }
+        }
     }
 
     public char GetPieceAtPosition(Coord coord) {
@@ -286,7 +258,9 @@ public class Board {
     }
 
     public void SetPieceAtPosition(Coord coord, char piece) {
-        ranks[coord.rank-1][coord.file-1] = piece;
+        lock (ranksLock) {
+            ranks[coord.rank-1][coord.file-1] = piece;
+        }
     }
 
     public String GetBoardStr() {
@@ -314,6 +288,72 @@ public class PlayerInfo {
 
     public PlayerInfo(bool isWhite) {
         this.isWhite = isWhite;
+    }
+
+}
+
+class ChessUtils {
+    public static Player OtherPlayer(Player player) {
+        if (player == Player.WHITE) return Player.BLACK;
+        else return Player.WHITE;
+    }
+    public static bool IsOwnPiece(char piece, Player player) {
+        if (player == Player.WHITE) { 
+            return piece >= 'a' && piece <= 'z';
+        }
+        else { 
+            return piece >= 'A' && piece <= 'Z';
+        }
+    }
+    public static bool IsKnightMove(Coord from, Coord to) {
+            var rankDiff = Math.Abs(to.rank - from.rank);
+            var fileDiff = Math.Abs(to.file - from.file);
+            if ((rankDiff == 2 && fileDiff == 1) || (rankDiff == 1 && fileDiff == 2)) return true;
+
+            return false;
+    }
+
+    public static bool IsDiagonalMove(Coord from, Coord to) {
+            var rankDiff = Math.Abs(to.rank - from.rank);
+            var fileDiff = Math.Abs(to.file - from.file);
+
+            if (rankDiff == fileDiff) return true;
+            
+            return false;
+    }
+
+    public static bool IsStraightMove(Coord from, Coord to) {
+            var rankDiff = Math.Abs(to.rank - from.rank);
+            var fileDiff = Math.Abs(to.file - from.file);
+
+            if (rankDiff == 0 || fileDiff == 0) return true;
+
+            return false;
+    }
+
+    public static bool MoveJumpsOverPiece(Coord from, Coord to, Board boardToUse) {
+        if (IsDiagonalMove(from, to)) {
+            return false;
+        } else if (IsStraightMove(from, to)) {
+            if (from.file == to.file) {
+                // Vertical move
+                int top = Math.Max(from.rank, to.rank); // get topmost rank to check
+                int bottom = Math.Min(from.rank, to.rank); // get bottommost rank to check
+                for (int r = bottom + 1; r < top; r++) {
+                    if (boardToUse.GetPieceAtPosition(new Coord(r, from.file)) != '.') return true;
+                }
+            } else {
+                // Horizontal move
+                int left = Math.Min(from.file, to.file); // get leftmost file to check
+                int right = Math.Max(from.file, to.file); // get rightmost file to check
+                for (int f = left + 1; f < right; f++) {
+                    if (boardToUse.GetPieceAtPosition(new Coord(from.rank, f)) != '.') return true;
+                }
+            }
+        }
+
+        // knight move, return false since we dont use it anyway
+        return false;
     }
 
 }
